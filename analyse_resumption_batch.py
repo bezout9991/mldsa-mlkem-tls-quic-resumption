@@ -290,11 +290,8 @@ def print_latex_table(rows):
     print("\\end{table}")
 
 
-def plot_comparison_tls_quic(data, output_dir):
+def plot_comparison_tls_quic(data, output_dir, target_sig, target_kem, suffix=""):
     """Graphique comparatif TLS vs QUIC (inspiré rustls-bench)"""
-    # Filtrer mldsa65/mlkem768
-    target_sig = 'mldsa65'
-    target_kem = 'mlkem768'
 
     scenarios = [
         ('none', '0', '0', 'Ideal'),
@@ -388,16 +385,14 @@ def plot_comparison_tls_quic(data, output_dir):
     fig.tight_layout()
 
     for ext in ['pdf', 'svg', 'png']:
-        fig.savefig(os.path.join(output_dir, f'comparison_resumption_batch.{ext}'),
+        fig.savefig(os.path.join(output_dir, f'comparison_resumption_batch{suffix}.{ext}'),
                     bbox_inches='tight', pad_inches=0.1)
     plt.close()
-    print(f"✅ Plots → {output_dir}/comparison_resumption_batch.pdf")
+    print(f"✅ Plots → {output_dir}/comparison_resumption_batch{suffix}.pdf")
 
 
-def plot_latency_distribution(data, output_dir):
+def plot_latency_distribution(data, output_dir, target_sig, target_kem, suffix=""):
     """Graphique de distribution de latence (inspiré rustls-bench, arXiv:2603.11006)"""
-    target_sig = 'mldsa65'
-    target_kem = 'mlkem768'
 
     scenarios = [
         ('none', '0', '0', 'Ideal (0ms/0%)'),
@@ -440,16 +435,14 @@ def plot_latency_distribution(data, output_dir):
     fig.tight_layout()
 
     for ext in ['pdf', 'svg']:
-        fig.savefig(os.path.join(output_dir, f'latency_distribution_batch.{ext}'),
+        fig.savefig(os.path.join(output_dir, f'latency_distribution_batch{suffix}.{ext}'),
                     bbox_inches='tight', pad_inches=0.1)
     plt.close()
-    print(f"✅ Distribution → {output_dir}/latency_distribution_batch.pdf")
+    print(f"✅ Distribution → {output_dir}/latency_distribution_batch{suffix}.pdf")
 
 
-def plot_percentile_comparison(data, output_dir):
+def plot_percentile_comparison(data, output_dir, target_sig, target_kem, suffix=""):
     """Graphique percentile comparison (inspiré arXiv:2603.11006 Table 5)"""
-    target_sig = 'mldsa65'
-    target_kem = 'mlkem768'
 
     scenarios = [
         ('none', '0', '0', 'Ideal'),
@@ -509,15 +502,15 @@ def plot_percentile_comparison(data, output_dir):
     ax2.set_xticks(percentiles)
     ax2.legend(fontsize=7, frameon=False)
 
-    fig.suptitle('Percentile Analysis — ML-DSA65 + ML-KEM768',
-                 fontsize=12, fontweight='bold', y=1.02)
+    fig.suptitle(f'Percentile Analysis — {target_sig} + {target_kem}',
+                  fontsize=12, fontweight='bold', y=1.02)
     fig.tight_layout()
 
     for ext in ['pdf', 'svg']:
-        fig.savefig(os.path.join(output_dir, f'percentile_comparison_batch.{ext}'),
+        fig.savefig(os.path.join(output_dir, f'percentile_comparison_batch{suffix}.{ext}'),
                     bbox_inches='tight', pad_inches=0.1)
     plt.close()
-    print(f"✅ Percentiles → {output_dir}/percentile_comparison_batch.pdf")
+    print(f"✅ Percentiles → {output_dir}/percentile_comparison_batch{suffix}.pdf")
 
 
 def main():
@@ -559,12 +552,19 @@ def main():
 
         print(f"{row['proto'].upper():<6} {scenario:<18} {row['sig']:<10} {full_p50:>10} {res_p50:>10} {speedup:>8} {res_rate:>8}")
 
-    # Générer les graphiques
+    # Générer les graphiques pour les deux paires
+    pairs = [
+        ('mldsa65', 'mlkem768'),
+        ('mldsa87', 'hqc256')
+    ]
+
     if PLOTS:
-        print("\nGénération des graphiques...")
-        plot_comparison_tls_quic(data, OUTPUT_DIR)
-        plot_latency_distribution(data, OUTPUT_DIR)
-        plot_percentile_comparison(data, OUTPUT_DIR)
+        print("\nGénération des graphiques pour les deux paires...")
+        for sig, kem in pairs:
+            suffix = f"_{sig}_{kem}"
+            plot_comparison_tls_quic(data, OUTPUT_DIR, sig, kem, suffix)
+            plot_latency_distribution(data, OUTPUT_DIR, sig, kem, suffix)
+            plot_percentile_comparison(data, OUTPUT_DIR, sig, kem, suffix)
 
     print("\n✅ Analyse terminée.")
 

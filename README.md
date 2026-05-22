@@ -46,6 +46,8 @@ This will regenerate:
 - `results/analysis_batch/comparison_resumption_batch.csv`
 - All publication figures (PDF/SVG/PNG)
 
+**Note on analysis**: The script now fully supports both cryptographic pairs. Separate figures are generated for each pair (e.g. `comparison_resumption_batch_mldsa65_mlkem768.pdf` and `comparison_resumption_batch_mldsa87_hqc256.pdf`).
+
 ## Pairs and Scenarios
 
 - **Pairs**: ML-DSA65 + ML-KEM768 and ML-DSA87 + HQC256
