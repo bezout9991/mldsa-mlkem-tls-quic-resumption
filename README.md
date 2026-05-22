@@ -1,102 +1,74 @@
 # Post-Quantum TLS 1.3 vs QUIC Session Resumption — Batch Séparés Experiment
 
-This repository contains the raw data and analysis scripts for the **Batch Séparés** (separated batches) session resumption benchmark, following the standard methodology used in the literature (rTLS, rustls-bench, etc.).
+This repository contains the **exact** raw data and scripts used for the Batch Séparés resumption benchmark (the standard methodology from the literature: rTLS, rustls-bench, etc.).
 
-## Experiment Design (Batch Séparés)
+**Goal of this repo**: full reproducibility of the paper results with zero path guessing.
 
-**Approach** (the most common in the literature):
-- **Phase 1**: 500 consecutive full handshakes (each establishes a new TLS/QUIC session)
-- **Phase 2**: 500 consecutive resumed handshakes (reusing the session from the last full handshake)
-
-This allows independent statistical analysis of full vs resumed performance (median, p95, p99, success rate).
-
-**Pairs tested**:
-- ML-DSA65 + ML-KEM768
-- ML-DSA87 + HQC256
-
-**Scenarios** (8 runs total):
-- TLS + QUIC
-- 4 network conditions: Ideal (0ms/0%), Local YDE (35ms/2%), Degraded (200ms/10%), GE Stable
-
-## Repository Structure
+## Directory Structure (identical to the original measurement environment)
 
 ```
-.
-├── README.md
-├── scripts/
-│   ├── Launcherv3_resumption_batch.sh      # Main launcher (1 pair)
-│   ├── run_resumption_batch_matrix.sh      # Full matrix runner (8 runs)
-│   ├── perftestClientResumptionBatch.sh    # Client (Phase 1 + Phase 2)
-│   └── analyse_resumption_batch.py         # Analysis script (produces CSV + plots)
+mldsa-mlkem-tls-quic-resumption/
+├── Launcherv3_resumption_batch.sh          ← launcher for one pair
+├── run_resumption_batch_matrix.sh          ← full matrix (8 runs)
+├── analyse_resumption_batch.py             ← analysis + figures
+├── 0-docker/
+│   └── scripts/
+│       └── perftestClientResumptionBatch.sh   ← the actual client used
 ├── results/
-│   ├── tls_none_l0_d0_20260522_071321/     # Raw data for each run
+│   ├── tls_none_l0_d0_20260522_071321/     ← raw data (CSV + metadata)
 │   ├── tls_simple_l2_d35_20260522_071837/
-│   ├── ... (6 more runs)
-│   └── analysis_batch/
-│       ├── comparison_resumption_batch.csv
-│       └── *.pdf (comparison, distribution, percentiles)
+│   ├── tls_simple_l10_d200_20260522_073108/
+│   ├── tls_stable_l0_d0_20260522_082000/
+│   ├── quic_none_l0_d0_20260522_084426/
+│   ├── quic_simple_l2_d35_20260522_085246/
+│   ├── quic_simple_l10_d200_20260522_090758/
+│   ├── quic_stable_l0_d0_20260522_100337/
+│   └── analysis_batch/                     ← generated CSV + PDFs
+└── README.md
 ```
 
-## How to Reproduce the Measurements
+## How to Reproduce (copy-paste)
 
-### Prerequisites
-- Docker with the image `uma-tls-quic-pq-34` (contains OpenSSL 3.4 + OQS provider + custom QUIC tools)
-- The Docker network `localNet` and volume `cert` are managed automatically by the scripts
+1. Clone this repo
+2. Make sure you have the Docker image `uma-tls-quic-pq-34` (same image used for the measurements)
 
-### Run a single test
+### Run the full matrix again (optional – will overwrite results/)
 ```bash
-./scripts/Launcherv3_resumption_batch.sh tls none 0 0
+./run_resumption_batch_matrix.sh
 ```
 
-### Run the full matrix (8 runs)
+### Re-analyze the existing data (recommended – fast)
 ```bash
-./scripts/run_resumption_batch_matrix.sh
+python3 analyse_resumption_batch.py results/ --plots --output results/analysis_batch
 ```
 
-Results are written under `results/<run_id>/` with one CSV per pair:
-- `resumption_1_mldsa65_mlkem768.csv`
-- `resumption_1_mldsa87_hqc256.csv`
+This will regenerate:
+- `results/analysis_batch/comparison_resumption_batch.csv`
+- All publication figures (PDF/SVG/PNG)
 
-Each CSV contains 1000 lines (500 full + 500 resumed) with columns:
-`run_id,handshake_type,duration_ms,success`
+## Pairs and Scenarios
 
-### Analyze the results
-```bash
-python3 scripts/analyse_resumption_batch.py results/ --plots --output results/analysis_batch
-```
+- **Pairs**: ML-DSA65 + ML-KEM768 and ML-DSA87 + HQC256
+- **Protocols**: TLS 1.3 and QUIC
+- **Network conditions**: Ideal (0 ms / 0 %), 35 ms / 2 %, 200 ms / 10 %, GE Stable
 
-This produces:
-- `comparison_resumption_batch.csv` (full table with p50/p95/p99, success rates, speedup)
-- Publication-ready PDF figures
+Each run directory contains two CSVs with 1000 lines each (500 full + 500 resumed).
 
-## Key Findings (ML-DSA65 + ML-KEM768)
+## Main Scientific Result
 
-| Protocol | Scenario          | Full P50 (ms) | Resumed P50 (ms) | Speedup | Resumed Success |
-|----------|-------------------|---------------|------------------|---------|-----------------|
-| QUIC     | Ideal (0/0)       | 7.57          | 7.62             | 0.99×   | 100%            |
-| QUIC     | 35ms/2%           | 81.36         | 81.03            | 1.00×   | 100%            |
-| QUIC     | 200ms/10%         | 414.25        | 414.86           | 1.00×   | 100%            |
-| QUIC     | GE Stable         | 15.80         | 14.03            | 1.13×   | 100%            |
-| TLS      | Ideal (0/0)       | 34.00         | 36.00            | 0.94×   | 100%            |
-| TLS      | 35ms/2%           | 170.00        | —                | —       | **0%**          |
-| TLS      | 200ms/10%         | 928.00        | —                | —       | **0%**          |
-| TLS      | GE Stable         | 121.00        | 128.50           | 0.94×   | 100%            |
+QUIC resumption succeeds at 100 % even under heavy degradation (200 ms + 10 % loss).
 
-**Main scientific result**:
-- **QUIC** resumption works reliably (100% success) even under heavy degradation (200 ms / 10% loss).
-- **TLS 1.3** session resumption completely fails in degraded conditions — the session ticket/file is never successfully created/persisted when the initial full handshake suffers packet loss or high delay.
+TLS 1.3 resumption completely fails (0 % success) as soon as the network is degraded — the session ticket is never reliably created or persisted when the initial full handshake suffers loss or delay.
 
-This demonstrates that the native QUIC resumption mechanism (NewSessionTicket + 0-RTT) is significantly more robust than classical TLS 1.3 session tickets under lossy/high-latency networks when using post-quantum cryptography.
+## Reproducibility Guarantee
 
-## Reproducibility Notes
+All raw CSVs are included. Anyone can:
+- Re-run the exact analysis script
+- Verify every number in the paper
+- Extend the experiment
 
-All raw CSVs are included so any researcher can:
-1. Re-run the exact same analysis script
-2. Verify the numbers in the paper
-3. Extend the experiment with new pairs or scenarios
-
-The Docker image `uma-tls-quic-pq-34` used for the measurements is the same one used in the broader project (see parent repository for build instructions).
+No hidden data, no missing scripts, no path guessing.
 
 ## License
 
-MIT — feel free to reuse the data and scripts for academic or industrial research.
+MIT – reuse freely for research or industry.
