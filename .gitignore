@@ -1,0 +1,12 @@
+# Ignore large raw data if someone wants to clone without results
+# results/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Editors
+.vscode/
+.idea/
+*.swp
